@@ -60,7 +60,7 @@ public class HelloWorldActivity extends AppCompatActivity {
                     case 0:
                         if (tvReceive != null) {
                             String text = tvReceive.getText().toString();
-                            text += "\n" + new String((byte[]) msg.obj);
+                            text += "\n" +   msg.obj.toString() ;
                             tvReceive.setText(text);
 
                         }
@@ -89,6 +89,7 @@ public class HelloWorldActivity extends AppCompatActivity {
                 helloWorldClient.setup(url, port, userbane, password);
                 helloWorldClient.createSender();
                 helloWorldClient.createReiver();
+
                 helloWorldClient.setUiHanler(handler);
             }
         }.start();

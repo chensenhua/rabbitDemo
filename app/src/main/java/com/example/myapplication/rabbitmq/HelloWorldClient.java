@@ -25,6 +25,8 @@ public class HelloWorldClient {
 
     private Connection receiveConn;
     private Channel receiveChannel;
+    private Connection receiveConn2;
+    private Channel receiveChannel2;
 
     private HandlerThread handlerThread;
 
@@ -32,13 +34,14 @@ public class HelloWorldClient {
 
 
     private Handler uiHanler;
+    static final String EXCHANGE_NAME = "direct_logs";
 
 
     public void setUiHanler(Handler uiHanler) {
         this.uiHanler = uiHanler;
     }
 
-    public void setup(String url, int port,String name,String pass) {
+    public void setup(String url, int port, String name, String pass) {
         factory = new ConnectionFactory();
         factory.setHost(url);
         factory.setPort(port);
@@ -57,13 +60,18 @@ public class HelloWorldClient {
             Log.e("sen", " connect succedd ");
             senderChannll = senderConn.createChannel();
             Log.e("sen", " create channel succedd ");
+
+            // 创建direct交换器
+            senderChannll.exchangeDeclare(EXCHANGE_NAME, "direct");
+
             senderChannll.queueDeclare("hello", false, false, true, null);
             Log.e("sen", " create queue succedd ");
+
 
             if (uiHanler != null) {
                 Message message = uiHanler.obtainMessage();
                 message.obj = "连接成功";
-                message.what=1;
+                message.what = 1;
                 uiHanler.sendMessage(message);
             }
 
@@ -72,7 +80,7 @@ public class HelloWorldClient {
             if (uiHanler != null) {
                 Message message = uiHanler.obtainMessage();
                 message.obj = "连接失败";
-                message.what=1;
+                message.what = 1;
                 uiHanler.sendMessage(message);
             }
         } catch (TimeoutException e) {
@@ -90,7 +98,7 @@ public class HelloWorldClient {
 
         handler.post(() -> {
             try {
-                senderChannll.basicPublish("", "hello", null, msg.getBytes());
+                senderChannll.basicPublish(EXCHANGE_NAME, "hello", null, msg.getBytes());
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -101,24 +109,45 @@ public class HelloWorldClient {
 
 
     public void createReiver() {
-
         try {
             receiveConn = factory.newConnection();
             receiveChannel = receiveConn.createChannel();
-            receiveChannel.queueDeclare("hello1", false, false, true, null);
-            receiveChannel.basicConsume("hello1", new DefaultConsumer(receiveChannel) {
+
+            receiveChannel.queueBind("hello", EXCHANGE_NAME, "hello");
+
+            receiveChannel.basicConsume("hello", new DefaultConsumer(receiveChannel) {
                 @Override
                 public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
                     super.handleDelivery(consumerTag, envelope, properties, body);
-                    Log.e("sen", "receive msg-->" + new String(body));
+                    Log.e("sen", "receive msg1-->" + new String(body));
                     if (uiHanler != null) {
                         Message message = uiHanler.obtainMessage();
-                        message.obj = body;
-                        message.what=0;
+                        message.obj = "receive1:" + new String(body);
+                        message.what = 0;
                         uiHanler.sendMessage(message);
                     }
                 }
             });
+
+
+            receiveConn2 = factory.newConnection();
+            receiveChannel2 = receiveConn2.createChannel();
+            //   receiveChannel2.queueDeclare("hello", false, false, true, null);
+            receiveChannel2.basicConsume("hello", new DefaultConsumer(receiveChannel2) {
+                @Override
+                public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+                    super.handleDelivery(consumerTag, envelope, properties, body);
+                    Log.e("sen", "receive msg2-->" + new String(body));
+                    if (uiHanler != null) {
+                        Message message = uiHanler.obtainMessage();
+                        message.obj = "receive2:" + new String(body);
+                        ;
+                        message.what = 0;
+                        uiHanler.sendMessage(message);
+                    }
+                }
+            });
+
         } catch (IOException e) {
             e.printStackTrace();
         } catch (TimeoutException e) {
@@ -161,6 +190,16 @@ public class HelloWorldClient {
                         }
                         receiveChannel = null;
                     }
+                    if (receiveChannel2 != null) {
+                        try {
+                            receiveChannel2.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        } catch (TimeoutException e) {
+                            e.printStackTrace();
+                        }
+                        receiveChannel2 = null;
+                    }
 
                     if (senderConn != null) {
                         try {
@@ -177,6 +216,14 @@ public class HelloWorldClient {
                             e.printStackTrace();
                         }
                         receiveConn = null;
+                    }
+                    if (receiveConn2 != null) {
+                        try {
+                            receiveConn2.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        receiveConn2 = null;
                     }
 
                     if (handler != null) {

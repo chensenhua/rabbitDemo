@@ -17,4 +17,8 @@ public class MainActivity extends AppCompatActivity {
     public void HelloWorldDemo(View view) {
         startActivity(new Intent(this,HelloWorldActivity.class));
     }
+
+    public void exchannel(View view) {
+        startActivity(new Intent(this, ExChannelActivity.class));
+    }
 }
